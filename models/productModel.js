@@ -3,11 +3,10 @@ const mongoose = require('mongoose');
 const productSchema = new mongoose.Schema(
   {
     productType: {
-      type: String,
-      required: true,
-      enum: ['capsule'],
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Producttype',
     },
-    name: {
+    productName: {
       type: String,
       required: [true, 'A product must have a name'],
       unique: true,
@@ -20,9 +19,11 @@ const productSchema = new mongoose.Schema(
         5,
         'A product name must have more or equal then 10 characters',
       ],
-      // validate: [validator.isAlpha, 'Tour name must only contain characters']
     },
-
+    expireDate: {
+      type: Date,
+      required: true,
+    },
     price: {
       type: Number,
       required: [true, 'A product must have a price'],
@@ -31,21 +32,6 @@ const productSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    priceDiscount: {
-      type: Number,
-      validate: {
-        validator: function (val) {
-          // this only points to current doc on NEW document creation
-          return val < this.price;
-        },
-        message: 'Discount price ({VALUE}) should be below regular price',
-      },
-    },
-    // contains: {
-    //   type: String,
-    //   trim: true,
-    //   required: [true, 'A product must have a list of element conatins'],
-    // },
     imageCover: {
       type: String,
       //   required: [true, 'A product must have a cover image'],
@@ -55,23 +41,18 @@ const productSchema = new mongoose.Schema(
       default: Date.now(),
       select: false,
     },
-    ratingsAverage: {
-      type: Number,
-      default: 4.5,
-      min: [1, 'Rating must be above 1.0'],
-      max: [5, 'Rating must be below 5.0'],
-      set: val => Math.round(val * 10) / 10, // 4.666666, 46.6666, 47, 4.7
-    },
-    ratingsQuantity: {
-      type: Number,
-      default: 0,
-    },
   },
   {
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
 );
+
+productSchema.virtual('comment', {
+  ref: 'Comment',
+  foreignField: 'product',
+  localField: '_id',
+});
 
 const Product = mongoose.model('Product', productSchema);
 

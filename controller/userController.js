@@ -1,49 +1,69 @@
+const handlerFactory = require('./handlerFactory');
 const User = require('./../models/UserModel');
-const catchAsync = require('./../utils/catchAsync');
-const AppError = require('./../utils/appError');
-// exports.getUser = factory.getOne(User);
-// exports.getAllUsers = factory.getAll(User);
+const jwt = require('jsonwebtoken');
+const sendEmail = require('./../utils/email');
 
-// // Do NOT update passwords with this!
-// exports.updateUser = factory.updateOne(User);
-// exports.deleteUser = factory.deleteOne(User);
-exports.signup = catchAsync(async (req, res, next) => {
-  const newUser = await User.create({
-    name: req.body.name,
-    email: req.body.email,
-    password: req.body.password,
-    passwordConfirm: req.body.passwordConfirm,
-  });
-  next();
-});
+exports.getAllUser = handlerFactory.getAll(User);
 
-exports.login = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
-  console.log(email, password);
+exports.signup = async (req, res, next) => {
+  try {
+    const newUser = await User.create({
+      name: req.body.name,
+      email: req.body.email,
+      password: req.body.password,
+      passwordConfirm: req.body.passwordConfirm,
+    });
 
-  // 1) Check if email and password exist
-  if (!email || !password) {
-    return next('provide email and password');
-    // return next(new AppError('Please provide email and password!', 400));
+    await sendEmail({
+      email: newUser.email,
+      subject: 'You have Registered successfully...',
+      message: `WELCOME ${newUser.name}\nId:${newUser.id}\nPassword:${newUser.password}`,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: `You have Register successfully. For more information check your mail...`,
+    });
+  } catch (error) {
+    res.status(401).json({
+      status: 'failed',
+      message: error.message,
+    });
   }
-  // 2) Check if user exists && password is correct
-  const user = await User.findOne({ email }).select('+password');
+};
 
-  if (
-    !user ||
-    password !== user.password
-    // !(await user.correctPassword(password, user.password))
-  ) {
-    return next('Incorrect email or password');
-    // return next(new AppError('Incorrect email or password', 401));
+exports.login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    console.log(email, password);
+
+    // 1) Check if email and password exist
+    if (!email || !password) {
+      return next('provide email and password');
+    }
+    // 2) Check if user exists && password is correct
+    const user = await User.findOne({ email }).select('+password');
+
+    if (!user || password !== user.password) {
+      return next('Incorrect email or password');
+    }
+
+    // 3) If everything ok, send token to client
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      token,
+      data: {
+        user,
+      },
+    });
+  } catch (error) {
+    res.status(401).json({
+      status: 'failed',
+      message: error.message,
+    });
   }
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      user,
-    },
-  });
-  // 3) If everything ok, send token to client
-  //   createSendToken(user, 200, req, res);
-});
+};

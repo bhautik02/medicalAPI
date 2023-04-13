@@ -1,17 +1,34 @@
 const express = require('express');
 const productController = require('./../controller/productController');
+const commentController = require('./../controller/commentController');
+const likeController = require('../controller/likeProductController');
+const authentication = require('./../controller/authController');
 
 const productRouter = express.Router();
 
 productRouter
   .route('/')
   .get(productController.getAllProduct)
-  .post(productController.createProduct);
+  .post(authentication, productController.createProduct);
+
+productRouter
+  .route('/most-recent-product')
+  .get(productController.mostRecentProduct);
+
+productRouter.route('/most-liked-product').get(likeController.mostLikedProduct);
 
 productRouter
   .route('/:id')
   .get(productController.getProduct)
-  .delete(productController.deleteProduct)
-  .patch(productController.updateProduct);
+  .delete(authentication, productController.deleteProduct)
+  .patch(authentication, productController.updateProduct);
+
+productRouter
+  .post('/:id/comment', authentication, commentController.createComment)
+  .post('/:id/like', authentication, likeController.likeProduct);
+
+productRouter
+  .route('/productByType/:productType')
+  .get(productController.getProductByProductType);
 
 module.exports = { productRouter };
